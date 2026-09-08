@@ -4,12 +4,14 @@
 
 Tested against the installed **DEVONthink 3.9.18** on macOS 26.4.1, Apple Silicon. Other DEVONthink 3 versions and editions have not been individually certified. DEVONthink 4 is outside this server's target.
 
-`npm run check` runs seven portable test cases. `DT3_LIVE_TEST=1 npm run test:live` runs one opt-in integration scenario containing assertions across the operations below. Both passed during release preparation. The final live scenario took approximately 24 seconds on the test machine; this is a smoke-test duration, not a large-archive benchmark.
+`npm run check` runs eight portable test cases. `DT3_LIVE_TEST=1 npm run test:live` runs one opt-in integration scenario containing assertions across the operations below. Both passed during release preparation. The final live scenario took approximately 27 seconds on the test machine; this is a smoke-test duration, not a large-archive benchmark.
 
 | Area | Evidence |
 | --- | --- |
 | MCP compatibility | Modern discovery/stateless requests and legacy initialization; real stdio process plus portable protocol tests |
 | Tool contract | Eight tools by default, thirteen with writes enabled; input rejection, output schemas, two prompts, guide resource and document template |
+| Setup | Strict saved configuration, environment narrowing, numbered selection validation, exact backup bytes, owner-only permissions and matching Pi package/version manifest |
+| Dynamic databases | Same live MCP connection detected a second synthetic DB opening, created/read its note, detected its closure and denied direct access and receipt replay afterward; preexisting DBs explicitly excluded from this fixture |
 | App connection | Fixed version 3 bundle ID; actual app version and permitted database discovery |
 | Research | Name query, paginated group browsing, long Korean/emoji text roundtrip, item-link input and text resource |
 | PDF | Imported the committed synthetic one-page PDF, read its expected text and verified page count |

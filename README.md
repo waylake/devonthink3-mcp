@@ -12,68 +12,74 @@ Local, scoped MCP access to **DEVONthink 3** on macOS. Search your archive, read
 
 Requires macOS, Node.js 22 or later, and a running, scriptable DEVONthink 3 installation. Open the databases you want to use. Allow the launching terminal or AI application to control DEVONthink in **System Settings → Privacy & Security → Automation** when macOS prompts.
 
-```sh
-git clone https://github.com/waylake/devonthink3-mcp.git
-cd devonthink3-mcp
-npm ci --ignore-scripts
-npm test
-npm run doctor
-```
-
-`doctor` prints open database names and UUIDs **locally**. Copy the UUID of the database you intend to expose. Keep this setup output private. No database is accessible through MCP until configured.
-
-The GitHub source is the distribution for this release. The package name in `package.json` identifies the project; it does not imply publication to the npm registry.
-
-## Connect Codex
-
-Run this from the cloned directory, replacing `YOUR_DATABASE_UUID` with a value from `doctor`:
+Choose and register a client without cloning the repository:
 
 ```sh
-codex mcp add devonthink3 \
-  --env "DT3_DATABASE_UUIDS=YOUR_DATABASE_UUID" \
-  -- "$(command -v node)" "$PWD/src/index.js"
+npx -y @waylake/devonthink3-mcp@0.2.0 setup --client codex
 ```
 
-Restart or reconnect the client after changing MCP configuration. Ask: **“Check DEVONthink, list permitted databases, and find notes about my project. Cite the original item links.”**
+For Pi:
 
-Codex also accepts this in `~/.codex/config.toml`. Use absolute paths, especially when launching from a desktop application:
-
-```toml
-[mcp_servers.devonthink3]
-command = "/absolute/path/to/node"
-args = ["/absolute/path/to/devonthink3-mcp/src/index.js"]
-startup_timeout_sec = 15
-tool_timeout_sec = 90
-
-[mcp_servers.devonthink3.env]
-DT3_DATABASE_UUIDS = "YOUR_DATABASE_UUID"
-DT3_ENABLE_WRITES = "0"
+```sh
+npx -y @waylake/devonthink3-mcp@0.2.0 setup --client pi
 ```
 
-Configuration format: [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
-Run `command -v node` to find the absolute Node path. GUI clients may not inherit your terminal's PATH. Multiple databases use `DT3_DATABASE_UUIDS="FIRST_UUID,SECOND_UUID"`.
+For both, use `--client both`. Setup lists open databases by name, asks you to select their numbers or explicitly follow all open databases, and asks whether to enable writes. It saves local settings, then calls the client's own installer. Codex CLI or Pi must already be on PATH. `--client pi` installs `pi-mcp-adapter@2.32.1` and this package through `pi install`; no separate MCP JSON editing is required.
 
-## Other local MCP clients
+Setup stores settings in `~/.config/devonthink3-mcp/config.json` with owner-only permissions and preserves the previous file as `config.json.bak`. Existing unrelated MCP servers and Pi packages are retained. If client registration fails after settings were saved, fix the client installation and rerun setup. Keep setup output and configuration private.
 
-For clients accepting an `mcpServers` JSON configuration:
+Reconnect Codex or restart Pi after installation. In Pi, `/reload` and `/mcp` refresh and inspect available servers. The adapter discovers the package's `pi.mcp` manifest and connects lazily when needed. The package entry is named `waylake_devonthink3-mcp__devonthink3` in the adapter. [Pi package documentation](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md), [adapter documentation](https://github.com/nicobailon/pi-mcp-adapter).
+
+### Explicit setup without prompts
+
+This grants reads and writes to **every database currently open and every database opened later**:
+
+```sh
+npx -y @waylake/devonthink3-mcp@0.2.0 setup --client both --database-mode open --enable-writes
+```
+
+Restrict access to selected UUIDs instead:
+
+```sh
+npx -y @waylake/devonthink3-mcp@0.2.0 --doctor
+npx -y @waylake/devonthink3-mcp@0.2.0 setup --database-uuids FIRST_UUID,SECOND_UUID --read-only
+```
+
+Without `--client`, setup saves settings only. Replace example UUIDs with values from the local doctor output. `--exclude-databases UUID,UUID` adds an exclusion list that overrides either scope mode; passing an empty string clears that list. Setup preserves other saved settings, including import roots. Settings changes require a client reconnect. Opening or closing databases does **not** require a reconnect.
+
+### Manual client installation
+
+If you prefer the client's native commands, first run `npx -y @waylake/devonthink3-mcp@0.2.0 setup` to choose scope, then:
+
+```sh
+# Codex
+codex mcp add devonthink3 -- npx -y @waylake/devonthink3-mcp@0.2.0
+
+# Pi
+pi install npm:pi-mcp-adapter@2.32.1
+pi install npm:@waylake/devonthink3-mcp@0.2.0
+```
+
+The setup helper registers absolute Node and npm CLI paths for Codex so GUI launches do not depend on finding Node through a shell. The manual `npx` form requires Node/npm on the client's PATH. [Official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+
+For another local stdio MCP client:
 
 ```json
 {
   "mcpServers": {
     "devonthink3": {
-      "command": "/absolute/path/to/node",
-      "args": ["/absolute/path/to/devonthink3-mcp/src/index.js"],
-      "env": { "DT3_DATABASE_UUIDS": "YOUR_DATABASE_UUID" }
+      "command": "npx",
+      "args": ["-y", "@waylake/devonthink3-mcp@0.2.0"]
     }
   }
 }
 ```
 
-The server speaks **stdio**. Remote web-only clients need a separate local-to-remote bridge; none is included here.
+Version pins keep the chosen server version stable. To upgrade, review the release and rerun setup from the new version. The Pi manifest intentionally executes the matching npm version through `npx`; the first connection may download that version into npm's cache. Subsequent connections reuse it. No repository checkout is required. Web-only remote clients need a separate local bridge; none is included.
 
 ## Tools
 
-Eight read tools are available by default. Five write tools appear only with `DT3_ENABLE_WRITES=1`.
+Eight read tools are available by default. Five write tools appear when writes are enabled in setup or with `DT3_ENABLE_WRITES=1`.
 
 | Tool | Purpose |
 | --- | --- |
@@ -95,7 +101,7 @@ Each successful tool response has an output schema, structured data and a text r
 
 ## Read and cite
 
-1. Call `dt3_databases`; choose an explicit database.
+1. Call `dt3_databases`; choose relevant databases. Search each explicitly and combine evidence with database UUIDs and item links.
 2. Call `dt3_search` with native syntax such as `name:report` or `tag:review`.
 3. Inspect metadata; call `dt3_read_text` only for relevant records.
 4. Continue with `next_offset` until `null`, comparing revisions if the source changes.
@@ -105,7 +111,7 @@ List pages default to 25 records, capped at 100. Text chunks default to 8,000 UT
 
 ## Preview and edit
 
-Enable writes in the local client configuration and reconnect. The server still defaults every mutation to a preview:
+Enable writes through setup or an environment override and reconnect. The server still defaults every mutation to a preview:
 
 ```json
 {
@@ -127,9 +133,14 @@ Mutation receipts prevent exact retries from repeating a write **within one serv
 
 ## Configuration
 
+Without settings or environment overrides, access is denied and writes are off. Settings are read once at startup. Environment values override saved settings. An explicit `DT3_DATABASE_UUIDS`, including an empty value, also selects `selected` mode unless `DT3_DATABASE_MODE` is explicitly provided. The Pi package uses the default settings file and does not inherit custom DT3 environment overrides; use setup or a custom MCP entry for a separate Pi profile.
+
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `DT3_DATABASE_UUIDS` | empty | Comma-separated permitted database UUIDs; no wildcard |
+| `DT3_CONFIG` | `~/.config/devonthink3-mcp/config.json` | Absolute settings-file path; an explicitly named missing file is an error |
+| `DT3_DATABASE_MODE` | `selected` | `selected` allows UUIDs; explicit `open` follows all open databases |
+| `DT3_DATABASE_UUIDS` | empty | Comma-separated permitted database UUIDs in selected mode; no wildcard |
+| `DT3_EXCLUDE_DATABASE_UUIDS` | empty | Comma-separated denied database UUIDs, in both modes |
 | `DT3_ENABLE_WRITES` | `0` | `1` exposes write tools; all other non-`0` values are rejected |
 | `DT3_EXCLUDE_TAGS` | empty | Extra excluded tags, comma-separated; `mcp-private` is always excluded |
 | `DT3_IMPORT_ROOTS` | `[]` | JSON array of absolute directories permitted for single-file imports |
@@ -159,5 +170,7 @@ DT3_LIVE_TEST=1 npm run test:live
 ```
 
 Portable tests cover policy, schemas, replay, imports, queueing and both protocol eras. The opt-in live test creates a temporary synthetic database, exercises actual app operations, closes it, and removes its temporary files. It requires DEVONthink 3 and Automation permission; do not run it while relying on the current selection for another workflow.
+
+For a durable archive structure and agent review workflow, read [the knowledge organization guide](docs/knowledge-workflow.ko.md).
 
 MIT license. See [design and research](docs/design.md) for upstream references and reuse decisions.

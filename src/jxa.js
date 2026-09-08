@@ -16,12 +16,16 @@ function run() {
     var deniedTags = config.excludedTags.map(function (tag) { return tag.toLowerCase(); });
     var decisions = {}, trash = {};
 
-    function dbAllowed(db) { return config.databaseUUIDs.indexOf(db.uuid().toUpperCase()) !== -1; }
+    function dbAllowed(db) {
+      var id = db.uuid().toUpperCase();
+      return (config.excludedDatabaseUUIDs || []).indexOf(id) === -1 &&
+        (config.databaseMode === 'open' || config.databaseUUIDs.indexOf(id) !== -1);
+    }
     function database(id) {
       for (var i = 0; i < databases.length; i++) {
         if (databases[i].uuid().toUpperCase() === id && dbAllowed(databases[i])) return databases[i];
       }
-      fail('ACCESS_DENIED', 'Database is not open or not in DT3_DATABASE_UUIDS.');
+      fail('ACCESS_DENIED', 'Database is not open or is outside the configured scope.');
     }
     function visible(record, active, depth) {
       var id = record.uuid();
@@ -114,7 +118,7 @@ function run() {
       if (record.indexed()) fail('INDEXED_WRITE_DENIED', 'Indexed originals must be edited through their source application.');
     }
 
-    if (request.op === 'status') return JSON.stringify({ running: true, version: version, writes_enabled: config.writes, configured_databases: config.databaseUUIDs.length, text_source: 'DEVONthink plain text index' });
+    if (request.op === 'status') return JSON.stringify({ running: true, version: version, writes_enabled: config.writes, database_mode: config.databaseMode || 'selected', configured_databases: config.databaseUUIDs.length, permitted_open_databases: databases.filter(dbAllowed).length, text_source: 'DEVONthink plain text index' });
     if (request.op === 'databases') return JSON.stringify({ databases: databases.filter(dbAllowed).map(function (db) { return { uuid: db.uuid(), name: bounded(db.name(), 1024), root_uuid: db.root.uuid(), read_only: db.readOnly() }; }) });
     // Local CLI only. Never registered as an MCP tool or resource.
     if (request.op === 'discover') return JSON.stringify({ version: version, databases: databases.map(function (db) { return { uuid: db.uuid(), name: bounded(db.name(), 1024) }; }) });

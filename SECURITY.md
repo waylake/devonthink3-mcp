@@ -4,14 +4,14 @@ This is a local stdio bridge running with the launching user's macOS privileges.
 
 ## Enforced by the server
 
-- Empty database configuration denies record access. Only explicit open database UUIDs are allowed; no wildcard.
+- Default selected mode with an empty UUID list denies record access. Local setup may explicitly enable open mode, which grants access to all currently open databases, including databases opened later. Explicit database exclusions override both modes. The scope is checked on every native call.
 - `mcp-private` and configured exclusion tags are checked case-insensitively on the record and every ancestor. Any private replicant parent denies access. Trash is excluded. Unreadable ancestry fails closed.
 - The same native scope checks apply to search, listing, direct UUID lookup, text resources, mutation inputs and receipt replay.
 - The server evaluates a fixed script. User content travels as JSON on stdin, never as shell code, interpolated JXA source or subprocess arguments.
 - Write tools are absent by default. Enabled tools validate explicit destinations, revisions, lock state, original-file indexing and database boundaries. Previews are the default.
 - Import roots use real paths. Symlink escapes, directories and files over 100 MiB are rejected. No server operation fetches arbitrary URLs.
 - Bounded outputs, a subprocess timeout, cancellation propagation, a 16-call queue and a 256-receipt ceiling constrain work. No unbounded batch mutation tool is exposed.
-- Raw native errors, record paths and document contents are not written to server logs. The local `--doctor` command intentionally displays database names and UUIDs for setup.
+- Raw native errors, record paths and document contents are not written to server logs. The local `--doctor` command and interactive setup intentionally display database names and UUIDs for setup. Settings and backups remain local with owner-only file permissions.
 
 ## Limits to understand
 

@@ -17,11 +17,11 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
   // DEVONthink imports files from OS temporary folders even when asked to index them.
   const dir = await mkdtemp(join(homedir(), '.devonthink3-mcp-live-'));
   const path = join(dir, 'Synthetic.dtBase2');
-  let db, client, closed = false;
+  let db, secondDB, client, closed = false;
   let request = 0;
-  const connect = async (writes, ids, modern = true) => {
+  const connect = async (writes, ids, modern = true, extra = {}) => {
     const c = new Client({ name: 'dt3-live-test', version: '1.0.0' }, modern ? { versionNegotiation: { mode: 'auto' } } : {});
-    await c.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('src/index.js')], env: { ...process.env, DT3_ENABLE_WRITES: writes ? '1' : '0', DT3_DATABASE_UUIDS: ids, DT3_IMPORT_ROOTS: JSON.stringify([dir]) }, stderr: 'pipe' }));
+    await c.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('src/index.js')], env: { ...process.env, DT3_CONFIG: join(dir, 'config.json'), DT3_DATABASE_MODE: 'selected', DT3_EXCLUDE_DATABASE_UUIDS: '', DT3_EXCLUDE_TAGS: '', DT3_ENABLE_WRITES: writes ? '1' : '0', DT3_DATABASE_UUIDS: ids, DT3_IMPORT_ROOTS: JSON.stringify([dir]), ...extra }, stderr: 'pipe' }));
     return c;
   };
   const call = async (name, args = {}) => {
@@ -37,6 +37,7 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
   const create = async (name, type = 'markdown', text = '') => (await call('create_record', { request_id: `create-${++request}`, dry_run: false, destination_uuid: db.root, name, type, text })).record;
   const current = async uuid => (await call('get_record', { uuid })).record;
   try {
+    await writeFile(join(dir, 'config.json'), '{}');
     db = await native(`${app} const d = a.createDatabase(${JSON.stringify(path)}); JSON.stringify({uuid:d.uuid(),root:d.root.uuid()});`);
     client = await connect(true, db.uuid);
     assert.ok(client.getDiscoverResult());
@@ -120,9 +121,24 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
     assert.equal((await client.listTools()).tools.length, 8);
     assert.deepEqual((await call('databases')).databases, []);
     await failure('get_record', { uuid: imported.record.uuid }, 'NOT_FOUND_OR_DENIED');
-    t.diagnostic('DEVONthink 3.9.18: both protocol eras, 13 tools, progress, citation resource, chunked Unicode, PDF extraction, metadata/text edits, revision conflict, replay, replicant-preserving move, private ancestry, locked/indexed guards and import verified on synthetic data.');
+    await client.close();
+    // Explicitly exclude every preexisting database from the dynamic-mode fixture.
+    const otherIDs = await native(`${app} JSON.stringify(a.databases().map(d=>d.uuid()).filter(id=>id!==${JSON.stringify(db.uuid)}));`);
+    client = await connect(true, '', true, { DT3_DATABASE_MODE: 'open', DT3_EXCLUDE_DATABASE_UUIDS: otherIDs.join(',') });
+    assert.equal((await call('status')).database_mode, 'open');
+    assert.equal((await call('databases')).databases.length, 1);
+    secondDB = await native(`${app} const d=a.createDatabase(${JSON.stringify(join(dir, 'Second.dtBase2'))}); JSON.stringify({uuid:d.uuid(),root:d.root.uuid()});`);
+    assert.equal((await call('databases')).databases.length, 2);
+    const added = (await call('create_record', { destination_uuid: secondDB.root, name: 'Dynamic database note', type: 'txt', text: 'Synthetic second database', request_id: 'dynamic-create-001', dry_run: false })).record;
+    assert.equal((await call('read_text', { uuid: added.uuid })).text, 'Synthetic second database');
+    await native(`${app} a.databases().find(d=>d.uuid()===${JSON.stringify(secondDB.uuid)}).close(); JSON.stringify(true);`);
+    assert.equal((await call('databases')).databases.length, 1);
+    await failure('get_record', { uuid: added.uuid }, 'NOT_FOUND_OR_DENIED');
+    await failure('create_record', { destination_uuid: secondDB.root, name: 'Dynamic database note', type: 'txt', text: 'Synthetic second database', request_id: 'dynamic-create-001', dry_run: false }, 'NOT_FOUND_OR_DENIED');
+    t.diagnostic('DEVONthink 3.9.18: both protocol eras, 13 tools, progress, citation resource, Unicode, PDF, edits, conflicts, replay, replicants, privacy, imports, and live database open/close with closed-database replay denial verified on synthetic data.');
   } finally {
     await client?.close();
+    if (secondDB) await native(`${app} a.databases().filter(d=>d.uuid()===${JSON.stringify(secondDB.uuid)}).forEach(d=>d.close()); JSON.stringify(true);`);
     if (db) {
       await native(`${app} const ds=a.databases(); for(let i=0;i<ds.length;i++){ if(ds[i].uuid()===${JSON.stringify(db.uuid)}) ds[i].close(); } JSON.stringify(true);`);
       closed = true;

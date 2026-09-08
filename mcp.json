@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "devonthink3": {
+      "command": "npx",
+      "args": ["-y", "@waylake/devonthink3-mcp@0.2.0"],
+      "inheritEnv": false,
+      "literalEnv": true
+    }
+  }
+}
