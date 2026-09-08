@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+.env
+.env.*
+*.dtBase2/
+*.log
+*.tgz
+output/
+tmp/

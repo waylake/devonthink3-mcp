@@ -1,0 +1,20 @@
+{
+  "name": "@waylake/devonthink3-mcp",
+  "version": "0.1.0",
+  "description": "Scoped, local MCP access to DEVONthink 3 on macOS",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "bin": { "devonthink3-mcp": "src/index.js" },
+  "files": ["src/", "docs/", "README.md", "SECURITY.md", "LICENSE"],
+  "scripts": {
+    "start": "node src/index.js",
+    "doctor": "node src/index.js --doctor",
+    "test": "node --test test/contract.test.js",
+    "test:live": "node --test test/live.test.js",
+    "check": "node --check src/jxa.js && node --test test/contract.test.js"
+  },
+  "repository": { "type": "git", "url": "https://github.com/waylake/devonthink3-mcp.git" },
+  "dependencies": { "@modelcontextprotocol/server": "2.0.0", "zod": "^4.3.6" },
+  "devDependencies": { "@modelcontextprotocol/client": "2.0.0" }
+}
