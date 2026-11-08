@@ -100,6 +100,46 @@ test('writes have conflict detection, bounded replay protection, previews and un
   await assert.rejects(new Devonthink(readConfig({})).call('create_record', {}), { code: 'READ_ONLY' });
 });
 
+test('preview then apply reuses the previewed state and skips a second metadata read', async () => {
+  let state = { name: 'preview-base', tags: [] }, reads = 0, writes = 0;
+  const service = new Devonthink(readConfig({ DT3_ENABLE_WRITES: '1' }), async ({ op, args }) => {
+    if (op === 'get_record') { reads++; return { record: { _state: state } }; }
+    if (args.dry_run) return { dry_run: true, operation: op, before: { _state: state }, destination: null, changes: args.changes, applied: false };
+    writes++;
+    return { dry_run: false, operation: op, before: { _state: state }, record: { _state: state }, applied: true };
+  });
+  const revision = publicResult({ _state: state }).revision;
+  const preview = { uuid: id, expected_revision: revision, request_id: 'preview-apply-001', name: 'after' };
+  assert.equal((await service.call('update_record', { ...preview, dry_run: true })).applied, false);
+  const readsAfterPreview = reads;
+  assert.equal(readsAfterPreview, 1);
+  const applied = await service.call('update_record', { ...preview, dry_run: false });
+  assert.equal(applied.applied, true);
+  assert.equal(writes, 1);
+  assert.equal(reads, readsAfterPreview);
+  await assert.rejects(service.call('update_record', { ...preview, dry_run: false, name: 'different' }), { code: 'REQUEST_ID_REUSED' });
+  // A stale preview state is rejected before the native mutation.
+  state = { name: 'changed', tags: [] };
+  await assert.rejects(service.call('update_record', { ...preview, expected_revision: revision, request_id: 'preview-apply-002', dry_run: false }), { code: 'CONFLICT' });
+  assert.equal(writes, 1);
+});
+
+test('bulk metadata and text calls batch native work and report per-record failures', async () => {
+  const calls = [];
+  const service = new Devonthink(readConfig({}), async ({ op, args }) => {
+    calls.push(op);
+    if (op === 'get_records') return { records: [{ uuid: args.uuids[0], _state: { name: 'a' } }], errors: [{ uuid: args.uuids[1], code: 'NOT_FOUND_OR_DENIED', message: 'denied' }] };
+    if (op === 'read_texts') return { documents: [{ record: { uuid: args.uuids[0] }, text: 'hello', offset: 0, next_offset: null, total_characters: 5, text_status: 'available' }], errors: [], total_characters: 5, next: null, truncated: false, untrusted: true };
+    throw new Error(`unexpected ${op}`);
+  });
+  const records = await service.call('get_records', { uuids: [id, '22222222-2222-4222-8222-222222222222'] });
+  assert.equal(records.records[0].revision.length, 64);
+  assert.equal(records.errors[0].code, 'NOT_FOUND_OR_DENIED');
+  const texts = await service.call('read_texts', { uuids: [id], limit: 4000, max_total_characters: 60000 });
+  assert.equal(texts.documents[0].text, 'hello');
+  assert.deepEqual(calls, ['get_records', 'read_texts']);
+});
+
 test('queue is serial, bounded and does not execute cancelled queued calls', async () => {
   let release, calls = 0;
   const blocked = new Promise(resolve => { release = resolve; });
@@ -152,8 +192,9 @@ for (const modern of [false, true]) test(`MCP ${modern ? '2026 stateless' : '202
   }
   try {
     const tools = (await client.listTools()).tools;
-    assert.equal(tools.length, 8);
+    assert.equal(tools.length, 10);
     assert.ok(tools.every(tool => tool.annotations.readOnlyHint && tool.outputSchema));
+    assert.ok(tools.some(tool => tool.name === 'dt3_get_records') && tools.some(tool => tool.name === 'dt3_read_texts'));
     assert.equal((await client.callTool({ name: 'dt3_status', arguments: {} })).structuredContent.version, '3.9.18');
     const before = calls;
     assert.equal((await client.callTool({ name: 'dt3_search', arguments: { database_uuid: id, query: 'hello', limit: 1000 } })).isError, true);

@@ -41,7 +41,7 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
     db = await native(`${app} const d = a.createDatabase(${JSON.stringify(path)}); JSON.stringify({uuid:d.uuid(),root:d.root.uuid()});`);
     client = await connect(true, db.uuid);
     assert.ok(client.getDiscoverResult());
-    assert.equal((await client.listTools()).tools.length, 13);
+    assert.equal((await client.listTools()).tools.length, 15);
     assert.match((await call('status')).version, /^3\./);
     assert.equal((await call('databases')).databases.length, 1);
     const updates = [];
@@ -91,6 +91,27 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
     assert.equal((await call('read_text', { uuid: imported.record.uuid })).text, 'Synthetic imported evidence 한글');
     const empty = await create('Empty note', 'txt');
     assert.equal((await call('read_text', { uuid: empty.uuid })).text_status, 'no_text');
+
+    const batch = await call('get_records', { uuids: [note.uuid, empty.uuid, '00000000-0000-4000-8000-000000000000'] });
+    assert.equal(batch.records.length, 2);
+    assert.equal(batch.errors.length, 1);
+    assert.equal(batch.errors[0].code, 'NOT_FOUND_OR_DENIED');
+    assert.ok(batch.records.every(row => /^[a-f0-9]{64}$/.test(row.revision)));
+    const bulk = await call('read_texts', { uuids: [note.uuid, empty.uuid], limit: 100, max_total_characters: 1000 });
+    assert.equal(bulk.documents.length, 2);
+    assert.ok(text.startsWith(bulk.documents[0].text));
+    assert.equal(bulk.documents[1].text_status, 'no_text');
+    assert.equal(bulk.errors.length, 0);
+    assert.ok(bulk.total_characters <= 1000);
+    const limited = await call('read_texts', { uuids: [note.uuid, empty.uuid], limit: 4000, max_total_characters: 1000 });
+    assert.equal(limited.truncated, true);
+    assert.equal(limited.next.uuid, note.uuid);
+    assert.equal(limited.next.offset, limited.documents[0].text.length);
+    const resumed = await call('read_texts', { uuids: [note.uuid], offset: limited.next.offset, limit: 500, max_total_characters: 1000 });
+    assert.ok(text.slice(limited.next.offset).startsWith(resumed.documents[0].text));
+    const split = await call('read_texts', { uuids: [note.uuid, empty.uuid], limit: 1000, max_total_characters: 1000 });
+    assert.equal(split.next.uuid, empty.uuid);
+    assert.equal(split.next.index, 1);
     const replaced = await call('update_record', { uuid: empty.uuid, expected_revision: (await current(empty.uuid)).revision, request_id: 'text-update-001', dry_run: false, text: 'Replacement 한글 🌍', rating: 4, unread: false, flagged: true });
     assert.equal((await call('read_text', { uuid: empty.uuid })).text, 'Replacement 한글 🌍');
     assert.notEqual(replaced.record.revision, empty.revision);
@@ -118,9 +139,12 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
     await failure('update_record', { ...update, dry_run: false }, 'NOT_FOUND_OR_DENIED');
     await client.close();
     client = await connect(false, '', false);
-    assert.equal((await client.listTools()).tools.length, 8);
+    assert.equal((await client.listTools()).tools.length, 10);
     assert.deepEqual((await call('databases')).databases, []);
     await failure('get_record', { uuid: imported.record.uuid }, 'NOT_FOUND_OR_DENIED');
+    await client.close();
+    client = await connect(false, '', true, { DT3_ONESHOT: '1' });
+    assert.match((await call('status')).version, /^3\./);
     await client.close();
     // Explicitly exclude every preexisting database from the dynamic-mode fixture.
     const otherIDs = await native(`${app} JSON.stringify(a.databases().map(d=>d.uuid()).filter(id=>id!==${JSON.stringify(db.uuid)}));`);
@@ -135,7 +159,7 @@ test('real DEVONthink 3 + stdio: read, preview, mutate, conflict, replicate, pri
     assert.equal((await call('databases')).databases.length, 1);
     await failure('get_record', { uuid: added.uuid }, 'NOT_FOUND_OR_DENIED');
     await failure('create_record', { destination_uuid: secondDB.root, name: 'Dynamic database note', type: 'txt', text: 'Synthetic second database', request_id: 'dynamic-create-001', dry_run: false }, 'NOT_FOUND_OR_DENIED');
-    t.diagnostic('DEVONthink 3.9.18: both protocol eras, 13 tools, progress, citation resource, Unicode, PDF, edits, conflicts, replay, replicants, privacy, imports, and live database open/close with closed-database replay denial verified on synthetic data.');
+    t.diagnostic('DEVONthink 3.9.18: both protocol eras, 15 tools, progress, citation resource, Unicode, PDF, edits, conflicts, replay, replicants, privacy, imports, and live database open/close with closed-database replay denial verified on synthetic data.');
   } finally {
     await client?.close();
     if (secondDB) await native(`${app} a.databases().filter(d=>d.uuid()===${JSON.stringify(secondDB.uuid)}).forEach(d=>d.close()); JSON.stringify(true);`);

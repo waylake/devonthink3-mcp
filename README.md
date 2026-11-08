@@ -15,13 +15,13 @@ Requires macOS, Node.js 22 or later, and a running, scriptable DEVONthink 3 inst
 Choose and register a client without cloning the repository:
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --client codex
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --client codex
 ```
 
 For Pi:
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --client pi
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --client pi
 ```
 
 For both, use `--client both`. Setup lists open databases by name, asks you to select their numbers or explicitly follow all open databases, and asks whether to enable writes. It saves local settings, then calls the client's own installer. Codex CLI or Pi must already be on PATH. `--client pi` installs `pi-mcp-adapter@2.32.1` and this package through `pi install`; no separate MCP JSON editing is required.
@@ -35,29 +35,29 @@ Reconnect Codex or restart Pi after installation. In Pi, `/reload` and `/mcp` re
 This grants reads and writes to **every database currently open and every database opened later**:
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --client both --database-mode open --enable-writes
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --client both --database-mode open --enable-writes
 ```
 
 Restrict access to selected UUIDs instead:
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 --doctor
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --database-uuids FIRST_UUID,SECOND_UUID --read-only
+npx -y @waylake/devonthink3-mcp@0.3.0 --doctor
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --database-uuids FIRST_UUID,SECOND_UUID --read-only
 ```
 
 Without `--client`, setup saves settings only. Replace example UUIDs with values from the local doctor output. `--exclude-databases UUID,UUID` adds an exclusion list that overrides either scope mode; passing an empty string clears that list. Setup preserves other saved settings, including import roots. Settings changes require a client reconnect. Opening or closing databases does **not** require a reconnect.
 
 ### Manual client installation
 
-If you prefer the client's native commands, first run `npx -y @waylake/devonthink3-mcp@0.2.0 setup` to choose scope, then:
+If you prefer the client's native commands, first run `npx -y @waylake/devonthink3-mcp@0.3.0 setup` to choose scope, then:
 
 ```sh
 # Codex
-codex mcp add devonthink3 -- npx -y @waylake/devonthink3-mcp@0.2.0
+codex mcp add devonthink3 -- npx -y @waylake/devonthink3-mcp@0.3.0
 
 # Pi
 pi install npm:pi-mcp-adapter@2.32.1
-pi install npm:@waylake/devonthink3-mcp@0.2.0
+pi install npm:@waylake/devonthink3-mcp@0.3.0
 ```
 
 The setup helper registers absolute Node and npm CLI paths for Codex so GUI launches do not depend on finding Node through a shell. The manual `npx` form requires Node/npm on the client's PATH. [Official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
@@ -69,7 +69,7 @@ For another local stdio MCP client:
   "mcpServers": {
     "devonthink3": {
       "command": "npx",
-      "args": ["-y", "@waylake/devonthink3-mcp@0.2.0"]
+      "args": ["-y", "@waylake/devonthink3-mcp@0.3.0"]
     }
   }
 }
@@ -79,7 +79,7 @@ Version pins keep the chosen server version stable. To upgrade, review the relea
 
 ## Tools
 
-Eight read tools are available by default. Five write tools appear when writes are enabled in setup or with `DT3_ENABLE_WRITES=1`.
+Ten read tools are available by default. Five write tools appear when writes are enabled in setup or with `DT3_ENABLE_WRITES=1`.
 
 | Tool | Purpose |
 | --- | --- |
@@ -91,6 +91,8 @@ Eight read tools are available by default. Five write tools appear when writes a
 | `dt3_get_record` | Metadata, optional custom metadata, and edit revision |
 | `dt3_read_text` | Bounded indexed text, extraction status and source link |
 | `dt3_related` | Similarity, classification, duplicates, incoming/outgoing item references |
+| `dt3_get_records` | Metadata and edit revisions for up to 100 records in one call |
+| `dt3_read_texts` | Bounded text for up to 100 records with a total character budget |
 | `dt3_create_record` | Preview/create Markdown, plain text or a group |
 | `dt3_update_record` | Preview/edit name, tags, comment, rating, flags, or plain/Markdown text |
 | `dt3_move_record` | Move one document instance; preserve other replicants |
@@ -98,6 +100,23 @@ Eight read tools are available by default. Five write tools appear when writes a
 | `dt3_import_file` | Import one permitted local file; retain its original |
 
 Each successful tool response has an output schema, structured data and a text rendering. Record identifiers accept UUIDs or `x-devonthink-item://` links. Tool results include `item_url` for citations and `resource_uri` for MCP clients. `devonthink3://record/{uuid}` reads the first text chunk; `devonthink3://guide` describes the workflow. The `research` and `organize` prompts provide starting workflows.
+
+## Performance and bulk work
+
+The server keeps one `osascript` process alive per MCP session and caches database discovery between calls. The first call starts the worker; subsequent calls skip process startup and the initial `app.databases()` round trip. Set `DT3_ONESHOT=1` to force one process per call for debugging or compatibility.
+
+Synthetic benchmark on DEVONthink 3.9.18 (100 Markdown records, best of three interleaved runs, milliseconds per call for `status`/`get_record`, per record for the rest; run `npm run bench` on your own archive):
+
+| Operation | Worker | One-shot | Speedup |
+| --- | ---: | ---: | ---: |
+| `dt3_status` (10 calls) | 10.0 | 189.9 | 19.1x |
+| `dt3_get_record` (10 calls) | 24.8 | 212.0 | 8.6x |
+| `dt3_list_group` (100 records) | 3.0 | 4.5 | 1.5x |
+| `dt3_get_records` (100 records) | 13.8 | 16.7 | 1.2x |
+| `dt3_read_texts` (100 records) | 12.5 | 9.6 | ~1.0x |
+| `dt3_search` (100 results) | 3.8 | 5.6 | 1.5x |
+
+The worker removes fixed per-call overhead. Batch tools remove MCP round trips and keep output bounded; per-record Apple Event cost inside DEVONthink is unchanged, so their per-record speedup is roughly neutral. Run the benchmark on your own archive before planning a large export. Use `dt3_list_group`/`dt3_search` with `limit: 200`, then `dt3_get_records` or `dt3_read_texts` for the page. `dt3_read_text` now accepts up to 64,000 UTF-16 units, which reduces repeated full-text materialization for long documents.
 
 ## Read and cite
 
@@ -107,7 +126,7 @@ Each successful tool response has an output schema, structured data and a text r
 4. Continue with `next_offset` until `null`, comparing revisions if the source changes.
 5. Cite the returned item link in the synthesis. Keep originals in DEVONthink and small, source-linked knowledge pages in Git.
 
-List pages default to 25 records, capped at 100. Text chunks default to 8,000 UTF-16 code units, capped at 16,000; surrogate pairs are preserved. Search/browse order is native and **not a snapshot**. Concurrent imports or edits may change page membership; deduplicate by UUID when gathering an inventory.
+List pages default to 25 records, capped at 200. Text chunks default to 8,000 UTF-16 code units, capped at 64,000; surrogate pairs are preserved. `dt3_read_texts` returns up to 100 documents per call under a 60,000-character default budget (200,000 maximum) and returns a `next` cursor for exact resumption. Search/browse order is native and **not a snapshot**. Concurrent imports or edits may change page membership; deduplicate by UUID when gathering an inventory.
 
 ## Preview and edit
 

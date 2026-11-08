@@ -11,13 +11,13 @@ macOS, Node.js 22 이상, 실행 중인 DEVONthink 3이 필요합니다.
 Codex 연결:
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --client codex
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --client codex
 ```
 
 Pi 연결:
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --client pi
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --client pi
 ```
 
 두 클라이언트 모두 연결하려면 `--client both`를 사용합니다. Codex CLI 또는 Pi가 먼저 설치되어 있어야 합니다. 설정 명령이 열려 있는 DB를 이름으로 보여주면 번호를 선택하고 쓰기 도구 사용 여부를 정합니다. 기본값은 선택한 DB만 읽는 모드입니다. Pi 연결 시 `pi install`로 `pi-mcp-adapter@2.32.1`과 이 패키지를 설치하며, 기존의 다른 MCP 서버와 Pi 패키지는 유지합니다. Git 클론이나 MCP JSON 수동 편집은 필요 없습니다.
@@ -29,18 +29,18 @@ npx -y @waylake/devonthink3-mcp@0.2.0 setup --client pi
 다음 명령은 **현재와 앞으로 DEVONthink에서 여는 모든 DB에 읽기·쓰기를 허용**합니다.
 
 ```sh
-npx -y @waylake/devonthink3-mcp@0.2.0 setup --client both --database-mode open --enable-writes
+npx -y @waylake/devonthink3-mcp@0.3.0 setup --client both --database-mode open --enable-writes
 ```
 
 이후 DB를 열거나 닫을 때마다 연결 범위가 바뀝니다. 서버 재시작은 필요 없습니다. `--exclude-databases UUID,UUID`로 특정 DB를 제외할 수 있습니다. 정책 설정 자체를 바꾸면 클라이언트를 다시 연결해야 합니다.
 
-클라이언트 기본 설치 명령을 직접 쓰고 싶다면, `npx -y @waylake/devonthink3-mcp@0.2.0 setup`으로 접근 범위를 정한 뒤 실행합니다.
+클라이언트 기본 설치 명령을 직접 쓰고 싶다면, `npx -y @waylake/devonthink3-mcp@0.3.0 setup`으로 접근 범위를 정한 뒤 실행합니다.
 
 ```sh
-codex mcp add devonthink3 -- npx -y @waylake/devonthink3-mcp@0.2.0
+codex mcp add devonthink3 -- npx -y @waylake/devonthink3-mcp@0.3.0
 
 pi install npm:pi-mcp-adapter@2.32.1
-pi install npm:@waylake/devonthink3-mcp@0.2.0
+pi install npm:@waylake/devonthink3-mcp@0.3.0
 ```
 
 설정 도우미는 Codex에 Node/npm의 절대 경로를 등록합니다. 위 수동 명령은 클라이언트에서 `npx`를 찾을 수 있어야 합니다. 설치 버전은 고정되어 있으며 업데이트 시 새 버전의 setup을 실행합니다. Pi는 패키지에 포함된 MCP 설정을 읽고 처음 사용할 때 서버에 연결합니다. 첫 실행에는 npm 패키지를 내려받을 수 있습니다. [Pi 공식 패키지 안내](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md), [pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter).
@@ -54,8 +54,9 @@ pi install npm:@waylake/devonthink3-mcp@0.2.0
 | 근거 연결 | `x-devonthink-item://` 원본 링크, MCP 문서 리소스 |
 | 관련 자료 찾기 | 유사 문서, 분류 제안, 중복 항목, 역링크와 참조 링크 |
 | 문서 정리 | 선택적으로 생성·수정·이동·복제·단일 파일 가져오기 |
+| 대량 처리 | 100개 단위 메타데이터·본문 묶음 조회, 200개 단위 목록 페이지 |
 
-처음에는 **읽기 도구 8개**만 노출됩니다. `DT3_ENABLE_WRITES=1`을 설정하고 다시 연결하면 쓰기 도구 5개가 추가됩니다. 변경 도구는 기본적으로 미리보기만 반환합니다. 결과를 검토하고 사용자가 허용한 작업에 `dry_run: false`를 사용합니다.
+처음에는 **읽기 도구 10개**만 노출됩니다. `DT3_ENABLE_WRITES=1`을 설정하고 다시 연결하면 쓰기 도구 5개가 추가됩니다. 대량 작업은 `dt3_get_records`(최대 100개 메타데이터)와 `dt3_read_texts`(문자 예산 내 여러 문서 본문)로 묶어서 처리합니다. 변경 도구는 기본적으로 미리보기만 반환합니다. 결과를 검토하고 사용자가 허용한 작업에 `dry_run: false`를 사용합니다.
 
 수정 전에는 `dt3_get_record`의 최신 `revision`을 확인합니다. 같은 프로세스에서 동일 요청을 재시도할 때는 같은 `request_id`를 사용합니다. 서버 재시작이나 시간 초과 뒤에는 현재 문서 상태부터 다시 확인해야 합니다.
 
@@ -69,6 +70,8 @@ pi install npm:@waylake/devonthink3-mcp@0.2.0
 - PDF 본문은 DEVONthink의 텍스트를 사용합니다. 전체 페이지 수는 제공하지만 본문 조각이 어느 PDF 페이지에 대응하는지는 보장하지 않습니다.
 - 잠긴 문서와 외부 파일을 인덱싱한 문서는 수정하지 않습니다. 그룹 자체의 위치 이동, 데이터베이스 간 이동, 영구 삭제도 제공하지 않습니다.
 - 많은 파일을 가져올 때는 DEVONthink에서 직접 처리합니다. MCP 가져오기는 설정한 디렉터리의 파일 한 개, 최대 100 MiB로 제한됩니다.
+
+서버는 MCP 세션마다 `osascript` 프로세스를 하나 유지하고 DB 목록을 재사용합니다. 첫 호출만 워커를 시작하며, 이후 호출은 프로세스 시작과 `app.databases()` 왕복을 생략합니다. 디버깅이나 호환성을 위해 `DT3_ONESHOT=1`로 호출당 프로세스 방식을 강제할 수 있습니다. 합성 100개 문서 기준 `dt3_status` 21배, `dt3_get_record` 7.7배, `dt3_search` 2.9배 빨라졌습니다(상세 표는 영문 README).
 
 자세한 변수와 도구 입력은 [영문 README](../README.md), 실제 검증 범위는 [검증 기록](validation.md), 최신 MCP 조사와 구현 결정은 [설계 문서](design.md), [보안 경계](../SECURITY.md)에 있습니다.
 

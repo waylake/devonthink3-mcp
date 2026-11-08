@@ -31,8 +31,10 @@ DT3_CONFIG sets an absolute settings-file path. See README for environment overr
       console.log(JSON.stringify({ ...discovered, writes_enabled: config.writes, database_mode: config.databaseMode, configured_databases: config.databaseUUIDs.length, next_step: 'Run setup to select databases or explicitly follow all open databases. Database names and UUIDs shown here are local setup data; do not publish them.' }, null, 2));
     } else {
       const handle = serveStdio(() => createServer(service));
-      process.on('SIGINT', () => { void handle.close(); });
-      process.on('SIGTERM', () => { void handle.close(); });
+      const shutdown = () => { service.close(); void handle.close(); };
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
+      process.on('exit', () => service.close());
     }
   }
 } catch (error) {

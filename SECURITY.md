@@ -10,7 +10,8 @@ This is a local stdio bridge running with the launching user's macOS privileges.
 - The server evaluates a fixed script. User content travels as JSON on stdin, never as shell code, interpolated JXA source or subprocess arguments.
 - Write tools are absent by default. Enabled tools validate explicit destinations, revisions, lock state, original-file indexing and database boundaries. Previews are the default.
 - Import roots use real paths. Symlink escapes, directories and files over 100 MiB are rejected. No server operation fetches arbitrary URLs.
-- Bounded outputs, a subprocess timeout, cancellation propagation, a 16-call queue and a 256-receipt ceiling constrain work. No unbounded batch mutation tool is exposed.
+- Bounded outputs, a subprocess timeout, cancellation propagation, a 16-call queue and a 256-receipt ceiling constrain work. Batch reads accept at most 100 records and a 200,000-character text budget. No unbounded batch mutation tool is exposed.
+- The persistent worker is a child of the MCP server with the same user privileges. It reads newline-delimited JSON from stdin and writes only MCP responses to stdout. It is recycled after 2,000 requests or five idle minutes, and killed on timeout or cancellation. A killed worker cannot roll back an Apple Event that was already delivered.
 - Raw native errors, record paths and document contents are not written to server logs. The local `--doctor` command and interactive setup intentionally display database names and UUIDs for setup. Settings and backups remain local with owner-only file permissions.
 
 ## Limits to understand
@@ -23,7 +24,7 @@ Native Apple Events are not transactional. Property updates may partially comple
 
 The server's queue does not coordinate with other processes, the DEVONthink UI, attached scripts or smart rules configured by the user. Native app rules may react to imported or edited records. The server does not alter or disable them. The original file may also change between import validation and native import; use a dedicated staging directory that other processes are not modifying.
 
-Tag and metadata sizes are bounded in responses; text extraction uses native APIs that can materialize a whole document before returning a slice. This is not a streaming parser or an exhaustive archive auditor.
+Tag and metadata sizes are bounded in responses; text extraction uses native APIs that can materialize a whole document before returning a slice. `dt3_read_texts` bounds the returned characters, not the native materialization cost of each document. This is not a streaming parser or an exhaustive archive auditor.
 
 ## Reporting
 
