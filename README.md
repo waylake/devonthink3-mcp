@@ -2,9 +2,9 @@
 
 Local, scoped MCP access to **DEVONthink 3** on macOS. Search your archive, read cited text, follow references, and preview document organization from an AI assistant.
 
-**Tested on DEVONthink 3.9.18.** Uses the official MCP TypeScript SDK 2.0.0 with the 2026-07-28 protocol and compatibility for 2025 clients. JavaScript source runs directly on Node.js; no build step, web server, API key, or second search index.
+**Tested on DEVONthink 3.9.18.** Uses the official MCP TypeScript SDK 2.4.0 with the 2026-07-28 protocol and compatibility for 2025 clients. JavaScript source runs directly on Node.js; no build step, web server, API key, or second search index.
 
-[한국어 안내](docs/README.ko.md) · [Design and research](docs/design.md) · [Validation](docs/validation.md) · [Security boundaries](SECURITY.md)
+[한국어 안내](docs/README.ko.md) · [Design and research](docs/design.md) · [Validation](docs/validation.md) · [Security boundaries](SECURITY.md) · [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md)
 
 > Already using DEVONthink 4? Its [built-in MCP server](https://www.devontechnologies.com/blog/20260526-devonthink-mcp-server) is the simpler starting point. This project is for people staying on version 3. It is independent of DEVONtechnologies.
 

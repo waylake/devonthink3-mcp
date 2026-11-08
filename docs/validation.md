@@ -4,12 +4,13 @@
 
 Tested against the installed **DEVONthink 3.9.18** on macOS 26.4.1, Apple Silicon. Other DEVONthink 3 versions and editions have not been individually certified. DEVONthink 4 is outside this server's target.
 
-`npm run check` runs ten portable test cases. `DT3_LIVE_TEST=1 npm run test:live` runs one opt-in integration scenario containing assertions across the operations below. Both passed during release preparation. The final live scenario took approximately 29 seconds on the test machine; this is a smoke-test duration, not a large-archive benchmark. `npm run bench` creates a separate synthetic database and measures both transports; it is not part of CI.
+`npm run check` runs ten portable test cases. `DT3_LIVE_TEST=1 npm run test:live` runs one opt-in integration scenario containing assertions across the operations below. Both passed during release preparation. The final live scenario took under 30 seconds on the test machine; this is a smoke-test duration, not a large-archive benchmark. `npm run bench` creates a separate synthetic database and measures both transports; it is not part of CI.
 
 | Area | Evidence |
 | --- | --- |
 | MCP compatibility | Modern discovery/stateless requests and legacy initialization; real stdio process plus portable protocol tests |
 | Tool contract | Ten tools by default, fifteen with writes enabled; input rejection, output schemas, two prompts, guide resource and document template |
+| Published artifact | The npm 0.3.0 tarball contains the persistent worker and both bulk tools; `npx -y @waylake/devonthink3-mcp@0.3.0` connected fifteen tools in Pi 1.5.0 |
 | Worker transport | One persistent osascript process per session; first-call startup, warm calls, one-shot fallback, timeout/cancellation kill and automatic restart verified by the live suite and smoke runs |
 | Bulk reads | `dt3_get_records` returned metadata with per-record errors; `dt3_read_texts` enforced the character budget, reported `no_text`, and resumed exactly from `next`. The synthetic benchmark exercised 100 records per batch |
 | Setup | Strict saved configuration, environment narrowing, numbered selection validation, exact backup bytes, owner-only permissions and matching Pi package/version manifest |

@@ -9,3 +9,4 @@
 - Keep stdout exclusively for MCP in server mode. Do not log source contents, paths, UUIDs, or raw AppleScript errors.
 - Preserve originals and other replicants. Never add arbitrary script execution or permanent deletion tools.
 - Public examples must use synthetic data. Use conventional commits without generated-by or co-author attribution.
+- Record user-visible changes in `CHANGELOG.md`. Follow `RELEASING.md` for version bumps, tags and npm publication; never rewrite a published tag or `main`.

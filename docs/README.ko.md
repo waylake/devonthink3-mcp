@@ -73,7 +73,7 @@ pi install npm:@waylake/devonthink3-mcp@0.3.0
 
 서버는 MCP 세션마다 `osascript` 프로세스를 하나 유지하고 DB 목록을 재사용합니다. 첫 호출만 워커를 시작하며, 이후 호출은 프로세스 시작과 `app.databases()` 왕복을 생략합니다. 디버깅이나 호환성을 위해 `DT3_ONESHOT=1`로 호출당 프로세스 방식을 강제할 수 있습니다. 합성 100개 문서 기준 `dt3_status` 21배, `dt3_get_record` 7.7배, `dt3_search` 2.9배 빨라졌습니다(상세 표는 영문 README).
 
-자세한 변수와 도구 입력은 [영문 README](../README.md), 실제 검증 범위는 [검증 기록](validation.md), 최신 MCP 조사와 구현 결정은 [설계 문서](design.md), [보안 경계](../SECURITY.md)에 있습니다.
+자세한 변수와 도구 입력은 [영문 README](../README.md), 실제 검증 범위는 [검증 기록](validation.md), 최신 MCP 조사와 구현 결정은 [설계 문서](design.md), [보안 경계](../SECURITY.md), 버전별 변경은 [CHANGELOG](../CHANGELOG.md), 배포 절차는 [RELEASING](../RELEASING.md)에 있습니다.
 
 DEVONthink 4를 사용한다면 [공식 내장 MCP](https://www.devontechnologies.com/blog/20260526-devonthink-mcp-server)부터 검토하는 편이 간단합니다. 이 프로젝트는 3을 계속 사용하는 사용자를 위한 독립 구현입니다.
 

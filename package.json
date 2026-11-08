@@ -14,6 +14,7 @@
     "src/",
     "docs/",
     "mcp.json",
+    "CHANGELOG.md",
     "README.md",
     "SECURITY.md",
     "LICENSE"

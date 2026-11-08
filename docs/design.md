@@ -1,12 +1,14 @@
-# Design and research — 2026-09-08
+# Design and research — 2026-09-08, updated 2026-11-08
 
 ## Product decision
+
+0.3.0 (2026-11-08) adds the persistent worker, bulk read tools, preview-state reuse and the synthetic benchmark. The product decision and scope model are unchanged; the SDK moved from 2.0.0 to 2.4.0.
 
 An agent should research and organize a DEVONthink 3 archive without copying its originals into a Git repository. The existing DEVONthink index remains the retrieval engine. The MCP server translates bounded, explicitly scoped operations into Apple Events; the AI host reasons over the returned evidence.
 
 ```mermaid
 flowchart LR
-  A[Local AI host] -->|MCP stdio| B[Official SDK 2.0.0]
+  A[Local AI host] -->|MCP stdio| B[Official SDK 2.4.0]
   B --> C[Validated tools and write queue]
   C -->|JSON lines| D[Persistent JXA worker]
   D -->|Apple Events| E[DEVONthink 3]
@@ -25,7 +27,7 @@ Research date and implementation date are **2026-09-08**. The following are prim
 | Finding | Decision | Primary source |
 | --- | --- | --- |
 | MCP 2026-07-28 introduces the stateless core, discovery, cacheable lists and a formal extensions framework | Use the current official SDK instead of implementing protocol messages ourselves | [Release announcement, July 28](https://blog.modelcontextprotocol.io/posts/2026-07-28/), [specification changelog](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/changelog.mdx) |
-| TypeScript SDK v2 is the stable line; `@modelcontextprotocol/server` and `client` resolve to 2.0.0 in npm at verification | Pin the SDK and commit the lockfile; verify both modern and legacy client flows | [SDK v2 documentation](https://ts.sdk.modelcontextprotocol.io/v2/), [stdio and legacy clients](https://ts.sdk.modelcontextprotocol.io/v2/serving/legacy-clients) |
+| TypeScript SDK v2 is the stable line; `@modelcontextprotocol/server` and `client` resolved to 2.0.0 at the original verification and to 2.4.0 in 0.3.0 | Pin the SDK and commit the lockfile; verify both modern and legacy client flows | [SDK v2 documentation](https://ts.sdk.modelcontextprotocol.io/v2/), [stdio and legacy clients](https://ts.sdk.modelcontextprotocol.io/v2/serving/legacy-clients) |
 | Typed tool results, resources, prompts, progress and cancellation are supported SDK primitives | Expose small purpose-specific tools, structured results, source resources and reusable research/organization prompts | [Tools](https://ts.sdk.modelcontextprotocol.io/v2/servers/tools), [resources](https://ts.sdk.modelcontextprotocol.io/v2/servers/resources), [progress and cancellation](https://ts.sdk.modelcontextprotocol.io/v2/servers/logging-progress-cancellation) |
 | The August roadmap focuses on agent messaging, HTTP hardening, identity and improved primitives | Follow stable capabilities; do not add speculative remote-agent infrastructure to a local desktop adapter | [Roadmap, August 22](https://blog.modelcontextprotocol.io/posts/mcp-roadmap/) |
 | DEVONthink's native MCP arrived in the version 4 line and includes its own redaction/exclusion options | Recommend the native server to version 4 users; implement explicit version 3 scope instead of claiming those controls carry over | [Vendor MCP introduction](https://www.devontechnologies.com/blog/20260526-devonthink-mcp-server), [release history](https://www.devontechnologies.com/apps/devonthink/releases) |
